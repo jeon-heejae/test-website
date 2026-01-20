@@ -57,6 +57,8 @@
       const codeVerifier = randomString(96);
       sessionStorage.setItem("pkce_verifier", codeVerifier);
 
+      console.log("pkce_verifier exists?", !!sessionStorage.getItem("pkce_verifier"));
+
       const challenge = base64url(await sha256(codeVerifier));
 
       const url = new URL(AUTH_ENDPOINT);
@@ -154,6 +156,8 @@
         await startLogin();
         return;
       }
+
+      console.log("pkce_verifier exists?", !!sessionStorage.getItem("pkce_verifier"));
 
       // 콜백 처리: code로 토큰 획득 → frontdoor 획득 → LO 부팅
       try {
