@@ -26,7 +26,7 @@
     // ===== 설정값 =====
     const SF_MYDOMAIN = "da1767753962898.my.salesforce.com";
     const CLIENT_ID = "3MVG9VTfpJmxg1yjLWfz5Za8o4IE9zddnTJHwQZNFsRmWzqtir_d48DdzPsIsjLcQF6vYFERqVQUeXW2713w_";
-    const REDIRECT_URI = window.location.origin + window.location.pathname; // index.html 자체로 콜백
+    const REDIRECT_URI = "https://jeon-heejae.github.io/test-website/"; 
     const AUTH_ENDPOINT = `https://${SF_MYDOMAIN}/services/oauth2/authorize`;
     const TOKEN_ENDPOINT = `https://${SF_MYDOMAIN}/services/oauth2/token`;
     const SINGLEACCESS_ENDPOINT = `https://${SF_MYDOMAIN}/services/oauth2/singleaccess`;
@@ -58,53 +58,53 @@
     }
 
     async function startLogin() {
+      const state = randomString(24);
       const codeVerifier = randomString(96);
-      localStorage.setItem("pkce_verifier", codeVerifier);
-
-      console.log("pkce_verifier exists?", !!localStorage.getItem("pkce_verifier"));
-
+    
+      localStorage.setItem(`pkce_verifier_${state}`, codeVerifier);
+    
       const challenge = base64url(await sha256(codeVerifier));
-
+    
       const url = new URL(AUTH_ENDPOINT);
       url.searchParams.set("response_type", "code");
       url.searchParams.set("client_id", CLIENT_ID);
       url.searchParams.set("redirect_uri", REDIRECT_URI);
       url.searchParams.set("code_challenge", challenge);
       url.searchParams.set("code_challenge_method", "S256");
-
-      // (선택) scope는 Connected App 설정/정책에 맞게
-      url.searchParams.set("scope", "full"); // 데모용. 최소권한 설계 권장
-
+      url.searchParams.set("state", state); // ★ 여기가 핵심
+    
+      // scope는 최소로(일단 테스트용은 api 정도로 시작 권장)
+      url.searchParams.set("scope", "api");
+    
       window.location.href = url.toString();
     }
 
-    async function exchangeCodeForToken(code) {
-      const verifier = localStorage.getItem("pkce_verifier");
-      if (!verifier) throw new Error("PKCE verifier not found");
 
+    async function exchangeCodeForToken(code, state) {
+      const verifierKey = `pkce_verifier_${state}`;
+      const verifier = localStorage.getItem(verifierKey);
+      if (!verifier) throw new Error("PKCE verifier not found for state=" + state);
+    
       const body = new URLSearchParams();
       body.set("grant_type", "authorization_code");
       body.set("client_id", CLIENT_ID);
       body.set("redirect_uri", REDIRECT_URI);
       body.set("code", code);
       body.set("code_verifier", verifier);
-
-      console.log("TOKEN_ENDPOINT", TOKEN_ENDPOINT);
-      console.log("client_id", CLIENT_ID);
-      console.log("redirect_uri", REDIRECT_URI);
-      console.log("code_verifier length", verifier?.length);
-      console.log("code", code?.slice(0, 20) + "...");
-
-
+    
       const res = await fetch(TOKEN_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: body.toString() // toString() 추가
+        body: body.toString()
       });
-
+    
+      // 1회성 정리(중복 시도 방지)
+      localStorage.removeItem(verifierKey);
+    
       if (!res.ok) throw new Error("Token exchange failed: " + await res.text());
-      return res.json(); // { access_token, instance_url, ... }
-    }
+      return res.json();
+    }  
+
 
     async function getFrontdoorUrl(accessToken) {
       // UI Bridge API: access token을 singleaccess로 보내 frontdoor.jsp URL을 받는다 :contentReference[oaicite:11]{index=11}
@@ -149,34 +149,38 @@
     }
 
     (async function main() {
+      const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
-
-      if (!accountId) {
-        console.warn("URL에 ?id=001... (Account Id) 를 붙여서 테스트하는 걸 추천");
-      }
-
+      const state = params.get("state");
+    
       if (!code) {
-        // 최초 진입: 로그인 시작
         await startLogin();
         return;
       }
-
-      console.log("pkce_verifier exists?", !!localStorage.getItem("pkce_verifier"));
-
-      // 콜백 처리: code로 토큰 획득 → frontdoor 획득 → LO 부팅
+    
+      if (!state) {
+        // state가 없으면 어떤 verifier를 써야 할지 모름 → 재로그인
+        params.delete("code");
+        history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+        await startLogin();
+        return;
+      }
+    
       try {
-        const token = await exchangeCodeForToken(code);
+        const token = await exchangeCodeForToken(code, state);
         const frontdoorUrl = await getFrontdoorUrl(token.access_token);
         await bootLightningOut(frontdoorUrl);
-
-        // URL 정리(코드 제거)
+    
+        // URL 정리
         params.delete("code");
+        params.delete("state");
         history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
       } catch (e) {
         console.error(e);
         alert(String(e));
       }
     })();
+
   </script>
 </body>
 </html>
