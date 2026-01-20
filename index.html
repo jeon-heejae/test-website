@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salesforce Lightning Out 2.0 (Secure Input)</title>
+    
+    <script src="https://da1767753962898.my.salesforce.com/lightning/lightning.out.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; line-height: 1.6; }
+        #container { 
+            border: 2px dashed #00a1e0; 
+            border-radius: 12px;
+            padding: 20px; 
+            min-height: 600px;
+            background-color: #f9f9f9;
+        }
+        .status-bar { margin-bottom: 10px; font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+
+    <h1>Salesforce LWC Embedded (via Lightning Out 2.0)</h1>
+    <p class="status-bar" id="status-text">상태: 토큰 입력 대기 중...</p>
+    
+    <div id="container">
+        <lightning-out-application
+            id="lo-app"
+            frontdoor-url=""
+            components="c/accountUsedServiceSummay">
+        </lightning-out-application>
+    </div>
+
+    <script>
+        const salesforceDomain = "https://[YourDomain].my.salesforce.com";
+        const statusText = document.getElementById('status-text');
+
+        // 3. 브라우저 prompt를 통한 토큰 입력 받기
+        const accessToken = prompt("Salesforce OAuth Access Token을 입력해주세요:");
+
+        if (accessToken && accessToken.trim() !== "") {
+            // Frontdoor URL 조합
+            const frontdoorUrl = `${salesforceDomain}/services/oauth2/singleaccess?access_token=${accessToken}`;
+            
+            // 요소를 찾아 URL 설정하여 로딩 시작
+            const loApp = document.getElementById('lo-app');
+            loApp.setAttribute('frontdoor-url', frontdoorUrl);
+            
+            statusText.innerText = "상태: 컴포넌트 로딩 중...";
+            statusText.style.color = "blue";
+        } else {
+            statusText.innerText = "상태: 토큰이 입력되지 않았습니다. 페이지를 새로고침하여 입력해주세요.";
+            statusText.style.color = "red";
+        }
+
+        // 이벤트 리스너: 로드 완료 확인
+        document.getElementById('lo-app').addEventListener('onscriptload', () => {
+            statusText.innerText = "상태: 컴포넌트 로드 완료!";
+            statusText.style.color = "green";
+            console.log('Lightning Out 스크립트 로드 성공');
+        });
+
+        document.getElementById('lo-app').addEventListener('onerror', (event) => {
+            statusText.innerText = "상태: 로드 실패 (콘솔 확인 필요)";
+            statusText.style.color = "red";
+            console.error('Lightning Out 2.0 에러 발생:', event.detail);
+        });
+    </script>
+</body>
+</html>
