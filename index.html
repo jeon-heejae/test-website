@@ -55,9 +55,9 @@
 
     async function startLogin() {
       const codeVerifier = randomString(96);
-      sessionStorage.setItem("pkce_verifier", codeVerifier);
+      localStorage.setItem("pkce_verifier", codeVerifier);
 
-      console.log("pkce_verifier exists?", !!sessionStorage.getItem("pkce_verifier"));
+      console.log("pkce_verifier exists?", !!localStorage.getItem("pkce_verifier"));
 
       const challenge = base64url(await sha256(codeVerifier));
 
@@ -75,7 +75,7 @@
     }
 
     async function exchangeCodeForToken(code) {
-      const verifier = sessionStorage.getItem("pkce_verifier");
+      const verifier = localStorage.getItem("pkce_verifier");
       if (!verifier) throw new Error("PKCE verifier not found");
 
       const body = new URLSearchParams();
@@ -157,7 +157,7 @@
         return;
       }
 
-      console.log("pkce_verifier exists?", !!sessionStorage.getItem("pkce_verifier"));
+      console.log("pkce_verifier exists?", !!localStorage.getItem("pkce_verifier"));
 
       // 콜백 처리: code로 토큰 획득 → frontdoor 획득 → LO 부팅
       try {
