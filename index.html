@@ -36,8 +36,12 @@
     const accountId = params.get("id");
 
     // PKCE helpers
-    const base64url = (arrBuf) => btoa(String.fromCharCode(...new Uint8Array(arrBuf)))
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const base64url = (arrBuf) => {
+      return btoa(String.fromCharCode(...new Uint8Array(arrBuf)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    };
 
     async function sha256(str) {
       const enc = new TextEncoder();
@@ -95,7 +99,7 @@
       const res = await fetch(TOKEN_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body
+        body: body.toString() // toString() 추가
       });
 
       if (!res.ok) throw new Error("Token exchange failed: " + await res.text());
