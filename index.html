@@ -1,72 +1,167 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salesforce Lightning Out 2.0 (Secure Input)</title>
-    
-    <script src="https://da1767753962898.my.salesforce.com/lightning/lightning.out.js"></script>
-    
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; line-height: 1.6; }
-        #container { 
-            border: 2px dashed #00a1e0; 
-            border-radius: 12px;
-            padding: 20px; 
-            min-height: 600px;
-            background-color: #f9f9f9;
-        }
-        .status-bar { margin-bottom: 10px; font-weight: bold; color: #555; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lightning Out 2.0 - Account Demo</title>
+
+  <!-- (중요) Lightning Out 2.0 App Manager가 제공하는 script 태그를 그대로 복붙하는 게 가장 안전 -->
+  <!-- 아래 src는 예시. App Manager에서 받은 값으로 교체 -->
+  <script src="https://da1767753962898.my.salesforce.com/lightning/lightning.out.2.0.js"></script>
 </head>
 <body>
+  <h1>External (GitHub Pages) → Salesforce </h1>
 
-    <h1>Salesforce LWC Embedded (via Lightning Out 2.0)</h1>
-    <p class="status-bar" id="status-text">상태: 토큰 입력 대기 중...!</p>
-    
-    <div id="container">
-        <lightning-out-application
-            id="loApp"
-            app-id="1UsHu000000sgYSKAY"
-            frontdoor-url=""
-            components="c-account-used-service-summary">
-        </lightning-out-application>
-    </div>
+  <!-- Lightning Out 2.0가 호스트 페이지에 만드는 핵심 웹컴포넌트 -->
+  <lightning-out-application
+    id="loApp"
+    app-id="1UsHu000000sgYSKAY"
+    components="c-account-used-service-summary">
+  </lightning-out-application>
 
-    <script>
-        const salesforceDomain = "https://da1767753962898.my.salesforce.com";
-        const statusText = document.getElementById('status-text');
+  <!-- 실제로 렌더링될 컴포넌트 태그(components에 등록한 것과 이름 매칭) -->
+  <c-account-used-service-summary id="accountCmp"></c-account-used-service-summary>
 
-        // 3. 브라우저 prompt를 통한 토큰 입력 받기
-        const accessToken = prompt("Salesforce OAuth Access Token을 입력해주세요:");
+  <script>
+    // ===== 설정값 =====
+    const SF_MYDOMAIN = "da1767753962898.my.salesforce.com";
+    const CLIENT_ID = "3MVG9VTfpJmxg1yjLWfz5Za8o4IE9zddnTJHwQZNFsRmWzqtir_d48DdzPsIsjLcQF6vYFERqVQUeXW2713w_";
+    const REDIRECT_URI = window.location.origin + window.location.pathname; // index.html 자체로 콜백
+    const AUTH_ENDPOINT = `https://${SF_MYDOMAIN}/services/oauth2/authorize`;
+    const TOKEN_ENDPOINT = `https://${SF_MYDOMAIN}/services/oauth2/token`;
+    const SINGLEACCESS_ENDPOINT = `https://${SF_MYDOMAIN}/services/oauth2/singleaccess`;
 
-        if (accessToken && accessToken.trim() !== "") {
-            // Frontdoor URL 조합
-            const frontdoorUrl = `${salesforceDomain}/services/oauth2/singleaccess?access_token=${accessToken}`;
-            
-            // 요소를 찾아 URL 설정하여 로딩 시작
-            const loApp = document.getElementById('lo-app');
-            loApp.setAttribute('frontdoor-url', frontdoorUrl);
-            
-            statusText.innerText = "상태: 컴포넌트 로딩 중...";
-            statusText.style.color = "blue";
-        } else {
-            statusText.innerText = "상태: 토큰이 입력되지 않았습니다. 페이지를 새로고침하여 입력해주세요.";
-            statusText.style.color = "red";
-        }
+    // URL ?id=001... 로 Account Id 넘기기
+    const params = new URLSearchParams(window.location.search);
+    const accountId = params.get("id");
 
-        // 이벤트 리스너: 로드 완료 확인
-        document.getElementById('lo-app').addEventListener('onscriptload', () => {
-            statusText.innerText = "상태: 컴포넌트 로드 완료!";
-            statusText.style.color = "green";
-            console.log('Lightning Out 스크립트 로드 성공');
-        });
+    // PKCE helpers
+    const base64url = (arrBuf) => btoa(String.fromCharCode(...new Uint8Array(arrBuf)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-        document.getElementById('lo-app').addEventListener('onerror', (event) => {
-            statusText.innerText = "상태: 로드 실패 (콘솔 확인 필요)";
-            statusText.style.color = "red";
-            console.error('Lightning Out 2.0 에러 발생:', event.detail);
-        });
-    </script>
+    async function sha256(str) {
+      const enc = new TextEncoder();
+      const digest = await crypto.subtle.digest('SHA-256', enc.encode(str));
+      return digest;
+    }
+
+    function randomString(len=64) {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+      let out = "";
+      const bytes = crypto.getRandomValues(new Uint8Array(len));
+      for (let i=0; i<len; i++) out += chars[bytes[i] % chars.length];
+      return out;
+    }
+
+    async function startLogin() {
+      const codeVerifier = randomString(96);
+      sessionStorage.setItem("pkce_verifier", codeVerifier);
+
+      const challenge = base64url(await sha256(codeVerifier));
+
+      const url = new URL(AUTH_ENDPOINT);
+      url.searchParams.set("response_type", "code");
+      url.searchParams.set("client_id", CLIENT_ID);
+      url.searchParams.set("redirect_uri", REDIRECT_URI);
+      url.searchParams.set("code_challenge", challenge);
+      url.searchParams.set("code_challenge_method", "S256");
+
+      // (선택) scope는 Connected App 설정/정책에 맞게
+      url.searchParams.set("scope", "full"); // 데모용. 최소권한 설계 권장
+
+      window.location.href = url.toString();
+    }
+
+    async function exchangeCodeForToken(code) {
+      const verifier = sessionStorage.getItem("pkce_verifier");
+      if (!verifier) throw new Error("PKCE verifier not found");
+
+      const body = new URLSearchParams();
+      body.set("grant_type", "authorization_code");
+      body.set("client_id", CLIENT_ID);
+      body.set("redirect_uri", REDIRECT_URI);
+      body.set("code", code);
+      body.set("code_verifier", verifier);
+
+      const res = await fetch(TOKEN_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body
+      });
+
+      if (!res.ok) throw new Error("Token exchange failed: " + await res.text());
+      return res.json(); // { access_token, instance_url, ... }
+    }
+
+    async function getFrontdoorUrl(accessToken) {
+      // UI Bridge API: access token을 singleaccess로 보내 frontdoor.jsp URL을 받는다 :contentReference[oaicite:11]{index=11}
+      const res = await fetch(SINGLEACCESS_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({}) // 구현/버전에 따라 body가 필요 없을 수도 있음
+      });
+
+      if (!res.ok) throw new Error("singleaccess failed: " + await res.text());
+      const data = await res.json();
+      // 반환 JSON 안에 frontdoor.jsp URL이 포함된다고 안내됨 :contentReference[oaicite:12]{index=12}
+      // 필드명은 실제 응답에 맞게 조정 필요(예: frontdoorUrl / url 등)
+      return data.frontdoorUrl || data.url || data.frontdoor_url;
+    }
+
+    async function bootLightningOut(frontdoorUrl) {
+      const loApp = document.getElementById("loApp");
+      loApp.setAttribute("frontdoor-url", frontdoorUrl); // 런타임 세팅 필수 :contentReference[oaicite:13]{index=13}
+
+      // 상태 이벤트(디버깅에 유용) :contentReference[oaicite:14]{index=14}
+      loApp.addEventListener("lo.application.ready", () => {
+        console.log("Lightning Out app ready");
+      });
+      loApp.addEventListener("lo.application.error", (e) => {
+        console.error("Lightning Out app error", e.detail);
+      });
+      loApp.addEventListener("lo.component.ready", () => {
+        console.log("Component rendered");
+      });
+      loApp.addEventListener("lo.component.error", (e) => {
+        console.error("Component error", e.detail);
+      });
+
+      // Account Id 전달
+      if (accountId) {
+        document.getElementById("accountCmp").setAttribute("record-id", accountId);
+      }
+    }
+
+    (async function main() {
+      const code = params.get("code");
+
+      if (!accountId) {
+        console.warn("URL에 ?id=001... (Account Id) 를 붙여서 테스트하는 걸 추천");
+      }
+
+      if (!code) {
+        // 최초 진입: 로그인 시작
+        await startLogin();
+        return;
+      }
+
+      // 콜백 처리: code로 토큰 획득 → frontdoor 획득 → LO 부팅
+      try {
+        const token = await exchangeCodeForToken(code);
+        const frontdoorUrl = await getFrontdoorUrl(token.access_token);
+        await bootLightningOut(frontdoorUrl);
+
+        // URL 정리(코드 제거)
+        params.delete("code");
+        history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+      } catch (e) {
+        console.error(e);
+        alert(String(e));
+      }
+    })();
+  </script>
 </body>
 </html>
