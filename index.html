@@ -83,6 +83,13 @@
       body.set("code", code);
       body.set("code_verifier", verifier);
 
+      console.log("TOKEN_ENDPOINT", TOKEN_ENDPOINT);
+      console.log("client_id", CLIENT_ID);
+      console.log("redirect_uri", REDIRECT_URI);
+      console.log("code_verifier length", verifier?.length);
+      console.log("code", code?.slice(0, 20) + "...");
+
+
       const res = await fetch(TOKEN_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
