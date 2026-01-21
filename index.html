@@ -2,38 +2,39 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salesforce LWC in GitHub Pages</title>
-    <style>
-        #lightning-container { min-height: 500px; border: 1px solid #ccc; padding: 10px; }
-        .login-btn { padding: 10px 20px; background: #0070d2; color: white; border: none; cursor: pointer; border-radius: 4px; }
-    </style>
+    <title>Salesforce Lightning Out 2.0</title>
+    <script type="text/javascript" async src="https://da1767753962898.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 </head>
 <body>
-    <h1>Salesforce 연동 화면</h1>
-    
-    <div id="lightning-container">
-        <p id="status-message">인증 확인 중...</p>
-        <button id="login-button" class="login-btn" style="display:none;" onclick="login()">Salesforce 로그인</button>
+    <h1>Salesforce LWC 연동 (2.0 방식)</h1>
+
+    <div id="container">
+        <button id="login-button" onclick="login()" style="display:none;">Salesforce 로그인</button>
+        
+        <lightning-out-application 
+            id="lo-app"
+            app-id="YOUR_18_DIGIT_APP_ID" 
+            components="c-account-used-service-summary">
+        </lightning-out-application>
+
+        <c-account-used-service-summary 
+            id="my-lwc"
+            record-id="001Hu00003xZax0IAC" 
+            style="display:none;">
+        </c-account-used-service-summary>
     </div>
 
-    <script src="https://da1767753962898.my.salesforce.com/lightning/lightning.out.js"></script>
     <script>
-        // --- [설정 값 입력] ---
-        const CLIENT_ID = '3MVG9VTfpJmxg1yjLWfz5Za8o4IE9zddnTJHwQZNFsRmWzqtir_d48DdzPsIsjLcQF6vYFERqVQUeXW2713w_'; // External Client App의 Consumer Key
-        const SF_DOMAIN = 'https://da1767753962898.my.salesforce.com'; // Salesforce 내 도메인
-        const REDIRECT_URI = 'https://jeon-heejae.github.io/test-website/callback.html'; // 등록한 Callback URL
-        // ---------------------
+        const CLIENT_ID = '3MVG9VTfpJmxg1yjLWfz5Za8o4IE9zddnTJHwQZNFsRmWzqtir_d48DdzPsIsjLcQF6vYFERqVQUeXW2713w_';
+        const SF_DOMAIN = 'https://da1767753962898.my.salesforce.com';
+        const REDIRECT_URI = 'https://jeon-heejae.github.io/test-website/callback.html';
 
         const token = localStorage.getItem('sf_token');
-        const instanceUrl = localStorage.getItem('sf_instance');
 
         if (!token) {
-            // 토큰이 없으면 로그인 버튼 표시
-            document.getElementById('status-message').innerText = 'Salesforce 로그인이 필요합니다.';
             document.getElementById('login-button').style.display = 'block';
         } else {
-            renderLWC();
+            initLightningOut();
         }
 
         function login() {
@@ -41,30 +42,26 @@
             window.location.href = authUrl;
         }
 
-        function renderLWC() {
-            document.getElementById('status-message').innerText = 'Lightning Out 로딩 중...';
+        function initLightningOut() {
+            // 5. Frontdoor URL 생성 (세션 수립용)
+            // 2.0에서는 단순히 토큰만 주는 게 아니라 frontdoor.jsp 경로를 완성해서 주어야 합니다.
+            const frontdoorUrl = `${SF_DOMAIN}/secur/frontdoor.jsp?sid=${token}&retURL=/`;
+            
+            const loApp = document.getElementById('lo-app');
+            const myLwc = document.getElementById('my-lwc');
 
-            // 1. Salesforce의 Lightning Out 라이브러리를 동적으로 로드합니다.
-            const script = document.createElement('script');
-            script.src = `${instanceUrl}/lightning/lightning.out.js`;
-            script.onload = () => {
-                console.log("라이브러리 로드 완료"); // 이 로그가 찍히는지 확인
-                // 2. Lightning Out 초기화
-                $Lightning.use("test_app", function() {
-                    // 3. 컴포넌트 생성
-                    console.log("Lightning Out 초기화 중..."); // 이 로그가 찍히는지 확인
-                    $Lightning.createComponent(
-                        "c:accountUsedServiceSummary", // LWC 이름
-                        { recordId: "001Hu00003xZax0IAC" }, // LWC에 전달할 파라미터 (선택)
-                        "lightning-container", // 렌더링할 DOM ID
-                        function(cmp) {
-                            document.getElementById('status-message').style.display = 'none';
-                            console.log("LWC 컴포넌트 렌더링 완료");
-                        }
-                    );
-                }, instanceUrl, token);
-            };
-            document.head.appendChild(script);
+            // 속성 설정
+            loApp.setAttribute('frontdoor-url', frontdoorUrl);
+
+            // 이벤트 리스너: 앱 준비 완료 시 LWC 표시
+            loApp.addEventListener('lo.application.ready', () => {
+                console.log("Lightning Out Application Ready!");
+                myLwc.style.display = 'block';
+            });
+
+            loApp.addEventListener('lo.application.error', (e) => {
+                console.error("App Error:", e.detail.message);
+            });
         }
     </script>
 </body>
