@@ -23,12 +23,15 @@
     </div>
 
     <script>
-        const CLIENT_ID = '3MVG9WVXk15qiz1Ic69FYi9ypt7SmWh0zuSSMperDyQ2J5ObTG_40.p4y9qi9Qa52QI.T56y8e3k6Tf8kbLgy';
-        const SF_DOMAIN = 'https://daeunextier-1f-dev-ed.develop.my.salesforce.com';
-        const REDIRECT_URI = 'https://jeon-heejae.github.io/test-website/callback.html';
+        /* --- [Salesforce 연동 설정 정보] --- */
+        const CLIENT_ID = '3MVG9WVXk15qiz1Ic69FYi9ypt7SmWh0zuSSMperDyQ2J5ObTG_40.p4y9qi9Qa52QI.T56y8e3k6Tf8kbLgy'; // External Client App의 Consumer Key
+        const SF_DOMAIN = 'https://daeunextier-1f-dev-ed.develop.my.salesforce.com'; // 사용자의 Salesforce 인스턴스 주소
+        const REDIRECT_URI = 'https://jeon-heejae.github.io/test-website/callback.html'; // OAuth 인증 성공 후 토큰을 받을 페이지
 
+        // 브라우저 로컬 스토리지에서 인증 토큰(Access Token)을 가져옴
         const token = localStorage.getItem('sf_token');
 
+        // [실행 흐름] 토큰 존재 여부에 따라 로그인 유도 또는 컴포넌트 초기화 실행
         if (!token) {
             document.getElementById('login-button').style.display = 'block';
             document.getElementById('loading-text').style.display = 'none';
@@ -36,19 +39,26 @@
             initLightningOut();
         }
 
+        /**
+         *  OAuth 인증 프로세스 시작
+         * 사용자를 Salesforce 로그인 페이지로 보낸 후, 성공하면 REDIRECT_URI로 이동함
+         */
         function login() {
             const authUrl = `${SF_DOMAIN}/services/oauth2/authorize?response_type=token&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}`;
             window.location.href = authUrl;
         }
 
+        /**
+         *  Lightning Out 2.0 초기화 및 렌더링
+         */
         function initLightningOut() {
             const frontdoorUrl = `${SF_DOMAIN}/secur/frontdoor.jsp?sid=${token}`;
             const loApp = document.getElementById('lo-app');
 
-            // 1. 세션 연결 시작
+            // 1. 세션 연결 시작(frontdoor-url 속성을 설정하면 라이브러리가 Salesforce와 통신을 시작함)
             loApp.setAttribute('frontdoor-url', frontdoorUrl);
 
-            // 2. 앱 준비 완료 시 실행
+            // 2. 앱 준비 완료 시 실행 (lo.application.ready 이벤트: Salesforce와 보안 핸드셰이크가 성공하여 앱 로드 준비가 끝났을 때 발생)
             loApp.addEventListener('lo.application.ready', () => {
                 console.log("Lightning Out Application Ready!");
                 
@@ -68,7 +78,7 @@
                 document.getElementById('loading-text').innerText = "오류 발생: " + e.detail.message;
             });
 
-            // 최종 렌더링 확인
+            // 최종 렌더링 확인 (컴포넌트가 실제 DOM에 렌더링 완료되었을 때 발생)
             loApp.addEventListener('lo.component.ready', () => {
                 console.log("Component is now ready and rendered!");
             });
