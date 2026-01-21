@@ -17,11 +17,12 @@
             components="c-test-lightning">
         </lightning-out-application>
 
-        <c-test-lightning 
-            id="my-lwc"
-            record-id="001Hu00003xZax0IAC" 
-            style="display:none;">
-        </c-test-lightning>
+        <div id="lwc-wrapper" style="display:none;">
+            <c-test-lightning 
+                id="my-lwc"
+                record-id="001Hu00003xZax0IAC">
+            </c-test-lightning>
+        </div>
     </div>
 
     <script>
@@ -45,10 +46,10 @@
         function initLightningOut() {
             // 5. Frontdoor URL 생성 (세션 수립용)
             // 2.0에서는 단순히 토큰만 주는 게 아니라 frontdoor.jsp 경로를 완성해서 주어야 합니다.
-            const frontdoorUrl = `${SF_DOMAIN}/secur/frontdoor.jsp?sid=${token}&retURL=/`;
+            const frontdoorUrl = `${SF_DOMAIN}/secur/frontdoor.jsp?sid=${token}`;
             
             const loApp = document.getElementById('lo-app');
-            const myLwc = document.getElementById('my-lwc');
+            const lwcWrapper = document.getElementById('lwc-wrapper');
 
             // 속성 설정
             loApp.setAttribute('frontdoor-url', frontdoorUrl);
@@ -56,11 +57,16 @@
             // 이벤트 리스너: 앱 준비 완료 시 LWC 표시
             loApp.addEventListener('lo.application.ready', () => {
                 console.log("Lightning Out Application Ready!");
-                myLwc.style.display = 'block';
+                lwcWrapper.style.display = 'block'; // 성공 시 래퍼 전체를 표시
             });
 
             loApp.addEventListener('lo.application.error', (e) => {
                 console.error("App Error:", e.detail.message);
+            });
+
+            // 컴포넌트 로드 완료 확인용
+            loApp.addEventListener('lo.component.ready', () => {
+                console.log("Component is now ready and rendered!");
             });
         }
     </script>
