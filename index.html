@@ -1,186 +1,69 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Lightning Out 2.0 - Account Demo</title>
-
-  <!-- (중요) Lightning Out 2.0 App Manager가 제공하는 script 태그를 그대로 복붙하는 게 가장 안전 -->
-  <!-- 아래 src는 예시. App Manager에서 받은 값으로 교체 -->
-  <script src="https://da1767753962898.my.salesforce.com/lightning/lightning.out.2.0.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salesforce LWC in GitHub Pages</title>
+    <style>
+        #lightning-container { min-height: 500px; border: 1px solid #ccc; padding: 10px; }
+        .login-btn { padding: 10px 20px; background: #0070d2; color: white; border: none; cursor: pointer; border-radius: 4px; }
+    </style>
 </head>
 <body>
-  <h1>External (GitHub Pages) → Salesforce </h1>
-
-  <!-- Lightning Out 2.0가 호스트 페이지에 만드는 핵심 웹컴포넌트 -->
-  <lightning-out-application
-    id="loApp"
-    app-id="1UsHu000000sgYSKAY"
-    components="c-account-used-service-summary">
-  </lightning-out-application>
-
-  <!-- 실제로 렌더링될 컴포넌트 태그(components에 등록한 것과 이름 매칭) -->
-  <c-account-used-service-summary id="accountCmp"></c-account-used-service-summary>
-
-  <script>
-    // ===== 설정값 =====
-    const SF_MYDOMAIN = "da1767753962898.my.salesforce.com";
-    const CLIENT_ID = "3MVG9VTfpJmxg1yjLWfz5Za8o4IE9zddnTJHwQZNFsRmWzqtir_d48DdzPsIsjLcQF6vYFERqVQUeXW2713w_";
-    const REDIRECT_URI = "https://jeon-heejae.github.io/test-website/"; 
-    const AUTH_ENDPOINT = `https://${SF_MYDOMAIN}/services/oauth2/authorize`;
-    const TOKEN_ENDPOINT = `https://${SF_MYDOMAIN}/services/oauth2/token`;
-    const SINGLEACCESS_ENDPOINT = `https://${SF_MYDOMAIN}/services/oauth2/singleaccess`;
-
-    // URL ?id=001... 로 Account Id 넘기기
-    const params = new URLSearchParams(window.location.search);
-    const accountId = params.get("id");
-
-    // PKCE helpers
-    const base64url = (arrBuf) => {
-      return btoa(String.fromCharCode(...new Uint8Array(arrBuf)))
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-    };
-
-    async function sha256(str) {
-      const enc = new TextEncoder();
-      const digest = await crypto.subtle.digest('SHA-256', enc.encode(str));
-      return digest;
-    }
-
-    function randomString(len=64) {
-      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-      let out = "";
-      const bytes = crypto.getRandomValues(new Uint8Array(len));
-      for (let i=0; i<len; i++) out += chars[bytes[i] % chars.length];
-      return out;
-    }
-
-    async function startLogin() {
-      const state = randomString(24);
-      const codeVerifier = randomString(96);
+    <h1>Salesforce 연동 화면</h1>
     
-      localStorage.setItem(`pkce_verifier_${state}`, codeVerifier);
-    
-      const challenge = base64url(await sha256(codeVerifier));
-    
-      const url = new URL(AUTH_ENDPOINT);
-      url.searchParams.set("response_type", "code");
-      url.searchParams.set("client_id", CLIENT_ID);
-      url.searchParams.set("redirect_uri", REDIRECT_URI);
-      url.searchParams.set("code_challenge", challenge);
-      url.searchParams.set("code_challenge_method", "S256");
-      url.searchParams.set("state", state); // ★ 여기가 핵심
-    
-      // scope는 최소로(일단 테스트용은 api 정도로 시작 권장)
-      url.searchParams.set("scope", "full");
-    
-      window.location.href = url.toString();
-    }
+    <div id="lightning-container">
+        <p id="status-message">인증 확인 중...</p>
+        <button id="login-button" class="login-btn" style="display:none;" onclick="login()">Salesforce 로그인</button>
+    </div>
 
+    <script src="https://da1767753962898.my.salesforce.com/lightning/lightning.out.js"></script>
+    <script>
+        // --- [설정 값 입력] ---
+        const CLIENT_ID = '3MVG9VTfpJmxg1yjLWfz5Za8o4IE9zddnTJHwQZNFsRmWzqtir_d48DdzPsIsjLcQF6vYFERqVQUeXW2713w_'; // External Client App의 Consumer Key
+        const SF_DOMAIN = 'https://da1767753962898.my.salesforce.com'; // Salesforce 내 도메인
+        const REDIRECT_URI = 'https://jeon-heejae.github.io/test-website/callback.html'; // 등록한 Callback URL
+        // ---------------------
 
-    async function exchangeCodeForToken(code, state) {
-      const verifierKey = `pkce_verifier_${state}`;
-      const verifier = localStorage.getItem(verifierKey);
-      if (!verifier) throw new Error("PKCE verifier not found for state=" + state);
-    
-      const body = new URLSearchParams();
-      body.set("grant_type", "authorization_code");
-      body.set("client_id", CLIENT_ID);
-      body.set("redirect_uri", REDIRECT_URI);
-      body.set("code", code);
-      body.set("code_verifier", verifier);
-    
-      const res = await fetch(TOKEN_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: body.toString()
-      });
-    
-      // 1회성 정리(중복 시도 방지)
-      localStorage.removeItem(verifierKey);
-    
-      if (!res.ok) throw new Error("Token exchange failed: " + await res.text());
-      return res.json();
-    }  
+        const token = localStorage.getItem('sf_token');
+        const instanceUrl = localStorage.getItem('sf_instance');
 
+        if (!token) {
+            // 토큰이 없으면 로그인 버튼 표시
+            document.getElementById('status-message').innerText = 'Salesforce 로그인이 필요합니다.';
+            document.getElementById('login-button').style.display = 'block';
+        } else {
+            renderLWC();
+        }
 
-    async function getFrontdoorUrl(accessToken) {
-      // UI Bridge API: access token을 singleaccess로 보내 frontdoor.jsp URL을 받는다 :contentReference[oaicite:11]{index=11}
-      const res = await fetch(SINGLEACCESS_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({}) // 구현/버전에 따라 body가 필요 없을 수도 있음
-      });
+        function login() {
+            const authUrl = `${SF_DOMAIN}/services/oauth2/authorize?response_type=token&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}`;
+            window.location.href = authUrl;
+        }
 
-      if (!res.ok) throw new Error("singleaccess failed: " + await res.text());
-      const data = await res.json();
-      // 반환 JSON 안에 frontdoor.jsp URL이 포함된다고 안내됨 :contentReference[oaicite:12]{index=12}
-      // 필드명은 실제 응답에 맞게 조정 필요(예: frontdoorUrl / url 등)
-      return data.frontdoorUrl || data.url || data.frontdoor_url;
-    }
+        function renderLWC() {
+            document.getElementById('status-message').innerText = 'Lightning Out 로딩 중...';
 
-    async function bootLightningOut(frontdoorUrl) {
-      const loApp = document.getElementById("loApp");
-      loApp.setAttribute("frontdoor-url", frontdoorUrl); // 런타임 세팅 필수 :contentReference[oaicite:13]{index=13}
-
-      // 상태 이벤트(디버깅에 유용) :contentReference[oaicite:14]{index=14}
-      loApp.addEventListener("lo.application.ready", () => {
-        console.log("Lightning Out app ready");
-      });
-      loApp.addEventListener("lo.application.error", (e) => {
-        console.error("Lightning Out app error", e.detail);
-      });
-      loApp.addEventListener("lo.component.ready", () => {
-        console.log("Component rendered");
-      });
-      loApp.addEventListener("lo.component.error", (e) => {
-        console.error("Component error", e.detail);
-      });
-
-      // Account Id 전달
-      if (accountId) {
-        document.getElementById("accountCmp").setAttribute("record-id", accountId);
-      }
-    }
-
-    (async function main() {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
-      const state = params.get("state");
-    
-      if (!code) {
-        await startLogin();
-        return;
-      }
-    
-      if (!state) {
-        // state가 없으면 어떤 verifier를 써야 할지 모름 → 재로그인
-        params.delete("code");
-        history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
-        await startLogin();
-        return;
-      }
-    
-      try {
-        const token = await exchangeCodeForToken(code, state);
-        const frontdoorUrl = await getFrontdoorUrl(token.access_token);
-        await bootLightningOut(frontdoorUrl);
-    
-        // URL 정리
-        params.delete("code");
-        params.delete("state");
-        history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
-      } catch (e) {
-        console.error(e);
-        alert(String(e));
-      }
-    })();
-
-  </script>
+            // 1. Salesforce의 Lightning Out 라이브러리를 동적으로 로드합니다.
+            const script = document.createElement('script');
+            script.src = `${instanceUrl}/lightning/lightning.out.js`;
+            script.onload = () => {
+                // 2. Lightning Out 초기화
+                $Lightning.use("c:test_app", function() {
+                    // 3. 컴포넌트 생성
+                    $Lightning.createComponent(
+                        "c:c-account-used-service-summary", // LWC 이름
+                        { recordId: "001Hu00003xZax0IAC" }, // LWC에 전달할 파라미터 (선택)
+                        "lightning-container", // 렌더링할 DOM ID
+                        function(cmp) {
+                            document.getElementById('status-message').style.display = 'none';
+                            console.log("LWC 컴포넌트 렌더링 완료");
+                        }
+                    );
+                }, instanceUrl, token);
+            };
+            document.head.appendChild(script);
+        }
+    </script>
 </body>
 </html>
