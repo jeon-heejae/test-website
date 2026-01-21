@@ -16,12 +16,8 @@
     <div id="container">
         <button id="login-button" onclick="login()" style="display:none;">Salesforce 로그인</button>
         
-        <lightning-out-application id="lo-app" app-id="1UsHu000000sgYSKAY" components="c-test-lightning">
-            <div id="lwc-wrapper" style="display:none;">
-                <c-test-lightning id="my-lwc" record-id="001Hu00003xZax0IAC"></c-test-lightning>
-            </div>
-        </lightning-out-application>
-
+        <lightning-out-application id="lo-app" app-id="1UsHu000000sgYSKAY" components="c-test-lightning"></lightning-out-application>
+        
     </div>
 
     <script>
@@ -56,7 +52,6 @@
             // 이벤트 리스너: 앱 준비 완료 시 LWC 표시
             loApp.addEventListener('lo.application.ready', () => {
                 console.log("Lightning Out Application Ready!");
-                lwcWrapper.style.display = 'block'; // 성공 시 래퍼 전체를 표시
             });
 
             loApp.addEventListener('lo.application.error', (e) => {
