@@ -16,7 +16,11 @@
     <div id="container">
         <button id="login-button" onclick="login()" style="display:none;">Salesforce 로그인</button>
         
-        <lightning-out-application id="lo-app" app-id="1UsHu000000sgYSKAY" components="c-test-lightning"></lightning-out-application>
+        <lightning-out-application id="lo-app" app-id="1UsHu000000sgYSKAY" components="c-test-lightning">
+            <div id="lwc-wrapper" style="display:none;">
+                <c-test-lightning id="my-lwc" record-id="001Hu00003xZax0IAC"></c-test-lightning>
+            </div>
+        </lightning-out-application>
 
     </div>
 
