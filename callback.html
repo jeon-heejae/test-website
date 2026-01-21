@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authenticating...</title>
+</head>
+<body>
+    <script>
+        // URL의 해시(#) 부분에서 access_token과 instance_url을 추출합니다.
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = params.get('access_token');
+        const instanceUrl = params.get('instance_url');
+
+        if (accessToken && instanceUrl) {
+            // 로컬 스토리지에 저장하여 메인 페이지에서 사용하도록 합니다.
+            localStorage.setItem('sf_token', accessToken);
+            localStorage.setItem('sf_instance', decodeURIComponent(instanceUrl));
+            
+            // 인증 완료 후 메인 페이지로 이동
+            window.location.href = 'index.html';
+        } else {
+            document.body.innerHTML = '인증에 실패했습니다. 설정을 확인하세요.';
+        }
+    </script>
+</body>
+</html>
