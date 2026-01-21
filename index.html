@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Salesforce Lightning Out 2.0</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/design-system/2.20.1/styles/salesforce-lightning-design-system.min.css" />
-    <script type="text/javascript" async src="https://daeunextier-1f-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
+    <script type="text/javascript" async src="https://da1767753962898.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
     <style>
         #lwc-container { margin-top: 20px; padding: 20px; border: 1px dashed #ccc; min-height: 200px; }
     </style>
@@ -15,7 +15,7 @@
     <div id="container">
         <button id="login-button" onclick="login()" style="display:none; padding:10px; background:#0070d2; color:white; border:none; border-radius:4px;">Salesforce 로그인</button>
         
-        <lightning-out-application id="lo-app" app-id="1UsdM0000000BOTSA2" components="c-test-lightning"></lightning-out-application>
+        <lightning-out-application id="lo-app" app-id="1UsHu000000sgYSKAY" components="c-test-lightning"></lightning-out-application>
         
         <div id="lwc-container">
             <p id="loading-text">기다려주세요. 컴포넌트를 불러오는 중입니다...</p>
@@ -23,15 +23,12 @@
     </div>
 
     <script>
-        /* --- [Salesforce 연동 설정 정보] --- */
-        const CLIENT_ID = '3MVG9WVXk15qiz1Ic69FYi9ypt7SmWh0zuSSMperDyQ2J5ObTG_40.p4y9qi9Qa52QI.T56y8e3k6Tf8kbLgy'; // External Client App의 Consumer Key
-        const SF_DOMAIN = 'https://daeunextier-1f-dev-ed.develop.my.salesforce.com'; // 사용자의 Salesforce 인스턴스 주소
-        const REDIRECT_URI = 'https://jeon-heejae.github.io/test-website/callback.html'; // OAuth 인증 성공 후 토큰을 받을 페이지
+        const CLIENT_ID = '3MVG9VTfpJmxg1yjLWfz5Za8o4IE9zddnTJHwQZNFsRmWzqtir_d48DdzPsIsjLcQF6vYFERqVQUeXW2713w_';
+        const SF_DOMAIN = 'https://da1767753962898.my.salesforce.com';
+        const REDIRECT_URI = 'https://jeon-heejae.github.io/test-website/callback.html';
 
-        // 브라우저 로컬 스토리지에서 인증 토큰(Access Token)을 가져옴
         const token = localStorage.getItem('sf_token');
 
-        // [실행 흐름] 토큰 존재 여부에 따라 로그인 유도 또는 컴포넌트 초기화 실행
         if (!token) {
             document.getElementById('login-button').style.display = 'block';
             document.getElementById('loading-text').style.display = 'none';
@@ -39,26 +36,19 @@
             initLightningOut();
         }
 
-        /**
-         *  OAuth 인증 프로세스 시작
-         * 사용자를 Salesforce 로그인 페이지로 보낸 후, 성공하면 REDIRECT_URI로 이동함
-         */
         function login() {
             const authUrl = `${SF_DOMAIN}/services/oauth2/authorize?response_type=token&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}`;
             window.location.href = authUrl;
         }
 
-        /**
-         *  Lightning Out 2.0 초기화 및 렌더링
-         */
         function initLightningOut() {
             const frontdoorUrl = `${SF_DOMAIN}/secur/frontdoor.jsp?sid=${token}`;
             const loApp = document.getElementById('lo-app');
 
-            // 1. 세션 연결 시작(frontdoor-url 속성을 설정하면 라이브러리가 Salesforce와 통신을 시작함)
+            // 1. 세션 연결 시작
             loApp.setAttribute('frontdoor-url', frontdoorUrl);
 
-            // 2. 앱 준비 완료 시 실행 (lo.application.ready 이벤트: Salesforce와 보안 핸드셰이크가 성공하여 앱 로드 준비가 끝났을 때 발생)
+            // 2. 앱 준비 완료 시 실행
             loApp.addEventListener('lo.application.ready', () => {
                 console.log("Lightning Out Application Ready!");
                 
@@ -66,8 +56,8 @@
                 const lwcContainer = document.getElementById('lwc-container');
                 lwcContainer.innerHTML = ''; // 로딩 메시지 삭제
 
-                const myLwc = document.createElement('c-account-key-indicators-summary');
-                myLwc.setAttribute('record-id', '001dM00000NSTgAQAX'); // @api recordId 에 전달
+                const myLwc = document.createElement('c-test-lightning');
+                myLwc.setAttribute('record-id', '001Hu00003xZax0IAC'); // @api recordId 에 전달
                 
                 lwcContainer.appendChild(myLwc);
             });
@@ -78,7 +68,7 @@
                 document.getElementById('loading-text').innerText = "오류 발생: " + e.detail.message;
             });
 
-            // 최종 렌더링 확인 (컴포넌트가 실제 DOM에 렌더링 완료되었을 때 발생)
+            // 최종 렌더링 확인
             loApp.addEventListener('lo.component.ready', () => {
                 console.log("Component is now ready and rendered!");
             });
